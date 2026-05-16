@@ -1,0 +1,423 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Search, Plus, Minus, Trash2, ShoppingCart, User, CreditCard, Package } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { processManualSale } from '../../firebase/products';
+
+const ManualSaleModal = ({ isOpen, onClose, products }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [cart, setCart] = useState([]);
+  const [customerName, setCustomerName] = useState('Walk-in Customer');
+  const [paymentType, setPaymentType] = useState('Cash'); // Cash, Credit
+  const [paymentStatus, setPaymentStatus] = useState('Paid'); // Paid, Unpaid
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [lastOrder, setLastOrder] = useState(null);
+
+  // Reset all state when the modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setShowReceipt(false);
+      setLastOrder(null);
+      setCart([]);
+      setCustomerName('Walk-in Customer');
+      setPaymentType('Cash');
+      setPaymentStatus('Paid');
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
+  // Filter products that have stock > 0 and match search
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter(p => p.stock > 0)
+      .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .slice(0, 10); // show top 10 matches for performance in modal
+  }, [products, searchQuery]);
+
+  // Cart operations
+  const addToCart = (product) => {
+    const existing = cart.find(item => item.id === product.id);
+    if (existing) {
+      if (existing.quantity < product.stock) {
+        setCart(cart.map(item => 
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        ));
+      } else {
+        toast.error(`Only ${product.stock} units available in stock`);
+      }
+    } else {
+      setCart([...cart, { ...product, quantity: 1 }]);
+    }
+    setSearchQuery(''); // clear search after adding
+  };
+
+  const updateQuantity = (id, newQuantity, maxStock) => {
+    if (newQuantity < 1) {
+      setCart(cart.filter(item => item.id !== id));
+      return;
+    }
+    if (newQuantity > maxStock) {
+      toast.error(`Only ${maxStock} units available`);
+      return;
+    }
+    setCart(cart.map(item => 
+      item.id === id ? { ...item, quantity: newQuantity } : item
+    ));
+  };
+
+  const removeFromCart = (id) => {
+    setCart(cart.filter(item => item.id !== id));
+  };
+
+  const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (cart.length === 0) {
+      toast.error('Cart is empty!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const orderData = {
+        customerName: customerName.trim() || 'Walk-in Customer',
+        customerAction: 'manual_walk_in',
+        paymentType,
+        paymentStatus,
+        total: grandTotal,
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        }))
+      };
+
+      await processManualSale(orderData);
+      setLastOrder({ ...orderData, id: 'REC-' + Date.now().toString().slice(-6) });
+      toast.success('Sale recorded and stock updated successfully!');
+      
+      // Don't close immediately, show receipt
+      setShowReceipt(true);
+      setCart([]);
+      setCustomerName('Walk-in Customer');
+      setPaymentType('Cash');
+      setPaymentStatus('Paid');
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'Failed to record sale');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-jade-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white border border-jade/5 rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Header */}
+        <div className="p-6 border-b border-jade/5 flex justify-between items-center bg-morning/50">
+          <h2 className="text-2xl font-black text-jade-dark flex items-center gap-3">
+            <ShoppingCart className="w-6 h-6 text-jade" />
+            {showReceipt ? 'Sale Receipt' : 'Record Physical Sale'}
+          </h2>
+          <button 
+            onClick={onClose}
+            className="p-2 text-pebble hover:text-jade-dark rounded-full hover:bg-morning transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Content */}
+        {showReceipt ? (
+          <div className="flex-1 overflow-y-auto">
+            <ReceiptView 
+              order={lastOrder} 
+              onPrint={() => window.print()} 
+              onClose={onClose} 
+            />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-jade/5 min-h-0">
+          
+          {/* Left panel: Product Selection */}
+          <div className="flex-1 flex flex-col min-h-0 bg-morning/30">
+            <div className="p-4 border-b border-jade/5 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-pebble w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-white border border-jade/5 rounded-2xl pl-10 pr-4 py-3 text-jade-dark focus:outline-none focus:border-jade focus:ring-1 focus:ring-jade/20 transition shadow-sm"
+                  autoFocus
+                />
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {filteredProducts.length === 0 ? (
+                <div className="text-center py-10 opacity-50 space-y-3">
+                  <Package className="w-10 h-10 mx-auto text-pebble" />
+                  <p className="text-sm italic text-pebble">No products found or in stock</p>
+                </div>
+              ) : (
+                filteredProducts.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => addToCart(p)}
+                    className="w-full text-left flex items-center gap-4 p-3 rounded-2xl hover:bg-morning border border-transparent hover:border-jade/10 transition group"
+                  >
+                    <div className="w-12 h-12 bg-morning rounded-xl overflow-hidden shrink-0 shadow-sm">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[8px] text-pebble uppercase font-bold">No Img</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-sm text-jade-dark truncate group-hover:text-jade transition-colors">{p.name}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-jade font-black text-xs">KES {p.price?.toLocaleString() || '0'}</span>
+                        <span className="text-[10px] text-pebble font-bold uppercase">• Stock: {p.stock ?? 0}</span>
+                      </div>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-pebble group-hover:bg-jade group-hover:text-white transition-all shadow-sm">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Right panel: Cart Details */}
+          <div className="w-full md:w-96 flex flex-col min-h-0 bg-white">
+            <div className="p-4 border-b border-jade/5 bg-morning/50 shrink-0">
+              <h3 className="font-black text-pebble uppercase tracking-widest text-[10px]">Current Sale ({cart.length} items)</h3>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[150px] md:max-h-none">
+              {cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-pebble space-y-2 opacity-50">
+                  <ShoppingCart className="w-8 h-8 opacity-20" />
+                  <p className="text-xs italic">Add items from the left</p>
+                </div>
+              ) : (
+                cart.map(item => (
+                  <div key={item.id} className="bg-morning/30 border border-jade/5 p-3 rounded-2xl flex flex-col gap-2">
+                    <div className="flex justify-between gap-2">
+                      <span className="text-sm font-bold text-jade-dark truncate flex-1">{item.name}</span>
+                      <button onClick={() => removeFromCart(item.id)} className="text-pebble hover:text-red-500 transition">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-jade/5 shadow-sm">
+                        <button 
+                          onClick={() => updateQuantity(item.id, item.quantity - 1, item.stock)}
+                          className="w-6 h-6 flex items-center justify-center bg-morning rounded-lg text-pebble hover:text-jade-dark transition"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <input 
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0, item.stock)}
+                          className="w-12 text-sm font-bold text-center bg-transparent text-jade-dark focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <button 
+                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.stock)}
+                          className="w-6 h-6 flex items-center justify-center bg-morning rounded-lg text-pebble hover:text-jade-dark transition"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <span className="text-sm font-black text-jade-dark">
+                        KES {((item.price || 0) * (item.quantity || 0)).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            {/* Checkout Form */}
+            <div className="p-5 border-t border-jade/5 bg-morning/50 shrink-0 space-y-4">
+              <div className="space-y-3">
+                <div className="relative group">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-pebble group-focus-within:text-jade transition-colors">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <input 
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Customer Name"
+                    className="w-full bg-white border border-jade/5 rounded-xl py-2.5 pl-10 pr-3 text-jade-dark text-sm focus:outline-none focus:border-jade transition shadow-sm"
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <select
+                      value={paymentType}
+                      onChange={(e) => {
+                        setPaymentType(e.target.value);
+                        setPaymentStatus(e.target.value === 'Credit' ? 'Unpaid' : 'Paid');
+                      }}
+                      className="w-full bg-white border border-jade/5 rounded-xl py-2.5 px-3 text-jade-dark text-sm focus:outline-none focus:border-jade appearance-none shadow-sm"
+                    >
+                      <option value="Cash">Cash/Mpesa</option>
+                      <option value="Credit">Credit</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 relative">
+                    <select
+                      value={paymentStatus}
+                      onChange={(e) => setPaymentStatus(e.target.value)}
+                      className="w-full bg-white border border-jade/5 rounded-xl py-2.5 px-3 text-jade-dark text-sm focus:outline-none focus:border-jade appearance-none shadow-sm"
+                    >
+                      <option value="Paid">Paid</option>
+                      <option value="Unpaid">Unpaid</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-end border-t border-jade/5 pt-3">
+                <span className="text-[10px] text-pebble font-black uppercase tracking-widest">Grand Total</span>
+                <span className="text-2xl font-black text-jade italic">KES {(grandTotal || 0).toLocaleString()}</span>
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                disabled={cart.length === 0 || isSubmitting}
+                className="w-full bg-jade hover:bg-jade-dark disabled:bg-morning disabled:text-pebble text-white font-black py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition transform active:scale-[0.98] disabled:transform-none shadow-lg disabled:shadow-none shadow-jade/20"
+              >
+                {isSubmitting ? (
+                  <span className="animate-pulse">Processing...</span>
+                ) : (
+                  <>
+                    <CreditCard className="w-5 h-5" />
+                    Complete Sale
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        )}
+
+      </div>
+    </div>
+  );
+};
+
+// Simple printable receipt component
+const ReceiptView = ({ order, onPrint, onClose }) => {
+  if (!order) return null;
+
+  return (
+    <div className="flex flex-col h-full bg-white text-black p-8 font-mono">
+      <div className="flex justify-between items-start mb-8 print:hidden">
+        <h2 className="text-xl font-bold text-jade-dark">Sale Receipt Generated</h2>
+        <div className="flex gap-2">
+          <button 
+            onClick={onPrint}
+            className="bg-jade text-white px-6 py-2 rounded-xl font-bold hover:bg-jade-dark transition shadow-lg shadow-jade/20"
+          >
+            Print Receipt
+          </button>
+          <button 
+            onClick={onClose}
+            className="bg-morning text-pebble px-6 py-2 rounded-xl font-bold hover:bg-jade/5 transition"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+
+      <div id="receipt-content" className="max-w-sm mx-auto border-2 border-dashed border-jade/20 p-6 bg-white">
+        <div className="text-center mb-6">
+          <h1 className="text-xl font-black uppercase tracking-tighter mb-1">RIDERS GEAR NAIROBI</h1>
+          <p className="text-[10px] text-pebble uppercase font-bold">Premium Motorcycle Gear</p>
+          <div className="h-px bg-jade/10 my-4" />
+          <p className="text-xs font-bold uppercase">Official Receipt</p>
+          <p className="text-[10px] mt-1 text-pebble">{new Date().toLocaleString()}</p>
+        </div>
+
+        <div className="space-y-4 mb-6">
+          <div className="flex justify-between text-[10px]">
+            <span className="font-bold uppercase">Receipt #:</span>
+            <span>{order.id}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="font-bold uppercase">Customer:</span>
+            <span>{order.customerName}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="font-bold uppercase">Payment:</span>
+            <span>{order.paymentType} ({order.paymentStatus})</span>
+          </div>
+        </div>
+
+        <div className="border-t border-b border-jade/10 py-4 mb-6">
+          <table className="w-full text-[10px]">
+            <thead>
+              <tr className="text-left font-black uppercase">
+                <th className="pb-2">Item</th>
+                <th className="pb-2 text-center">Qty</th>
+                <th className="pb-2 text-right">Price</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-jade/5">
+              {order.items.map((item, i) => (
+                <tr key={i}>
+                  <td className="py-2 pr-2 leading-tight">{item.name}</td>
+                  <td className="py-2 text-center">{item.quantity}</td>
+                  <td className="py-2 text-right">{(item.price * item.quantity).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="space-y-2 mb-8">
+          <div className="flex justify-between text-base font-black">
+            <span>TOTAL</span>
+            <span>KES {order.total.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div className="text-center">
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-2">Thank you for your business!</p>
+          <div className="w-16 h-1 bg-jade mx-auto mb-2" />
+          <p className="text-[8px] text-pebble italic">Goods once sold are not returnable</p>
+        </div>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * { visibility: hidden; }
+          #receipt-content, #receipt-content * { visibility: visible; }
+          #receipt-content { 
+            position: absolute; 
+            left: 0; 
+            top: 0; 
+            width: 100%;
+            border: none;
+          }
+        }
+      `}} />
+    </div>
+  );
+};
+
+export default ManualSaleModal;
