@@ -220,9 +220,13 @@ const AdminDashboard = () => {
     }
     const newList = [...categories, newCategoryName.trim()];
     try {
-      await updateCategoriesList(newList);
-      setNewCategoryName('');
-      toast.success("Category added");
+      const res = await updateCategoriesList(newList);
+      if (res.success) {
+        setNewCategoryName('');
+        toast.success("Category added");
+      } else {
+        toast.error(res.error || "Failed to add category");
+      }
     } catch {
       toast.error("Failed to add category");
     }
@@ -236,8 +240,12 @@ const AdminDashboard = () => {
         closeConfirm();
         const newList = categories.filter(c => c !== name);
         try {
-          await updateCategoriesList(newList);
-          toast.success('Category removed');
+          const res = await updateCategoriesList(newList);
+          if (res.success) {
+            toast.success('Category removed');
+          } else {
+            toast.error(res.error || 'Failed to remove category');
+          }
         } catch {
           toast.error('Failed to remove category');
         }
