@@ -65,11 +65,8 @@ export const executeTransaction = async (orderData) => {
       }
 
       const itemsWithCost = productDocs.map(({ data, item }) => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
+        ...item,
         buyingPrice: data.buyingPrice || 0,
-        quantity: item.quantity,
       }));
 
       const newOrderRef = doc(ordersCollection);

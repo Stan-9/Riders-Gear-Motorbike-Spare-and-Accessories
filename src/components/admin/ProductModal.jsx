@@ -9,6 +9,7 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
     category: '',
     price: '',
     buyingPrice: '',
+    minSellingPrice: '',
     stock: '',
     description: '',
     isVisible: true,
@@ -24,13 +25,14 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
         category: product.category || '',
         price: product.price || '',
         buyingPrice: product.buyingPrice || '',
+        minSellingPrice: product.minSellingPrice || '',
         stock: product.stock || '',
         description: product.description || '',
         isVisible: product.isVisible ?? true,
       });
       setImagePreview(product.imageUrl || null);
     } else {
-      setFormData({ name: '', category: '', price: '', buyingPrice: '', stock: '', description: '', imageUrl: '', isVisible: true });
+      setFormData({ name: '', category: '', price: '', buyingPrice: '', minSellingPrice: '', stock: '', description: '', imageUrl: '', isVisible: true });
       setImagePreview(null);
       setImageFile(null);
     }
@@ -181,7 +183,7 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
                   </select>
                 </div>
                 
-                <div>
+                 <div>
                   <label className="block text-sm font-bold text-pebble mb-1">Buying Price (Cost) *</label>
                   <input 
                     type="number" 
@@ -207,7 +209,20 @@ const ProductModal = ({ isOpen, onClose, product = null, categories = [] }) => {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div>
+                  <label className="block text-sm font-bold text-pebble mb-1">Min Sell Price (Manager Limit) *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={formData.minSellingPrice}
+                    onChange={e => setFormData({...formData, minSellingPrice: e.target.value})}
+                    className="w-full bg-morning border border-jade/5 rounded-xl px-4 py-2 text-jade-dark focus:outline-none focus:border-jade transition shadow-sm"
+                    placeholder="0"
+                    required
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-bold text-pebble mb-1">Stock Quantity *</label>
                   <input 
                     type="number" 

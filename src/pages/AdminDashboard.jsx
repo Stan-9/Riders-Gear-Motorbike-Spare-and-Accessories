@@ -63,6 +63,7 @@ const NavButton = ({ id, icon: Icon, label, badge = null, activeTab, setActiveTa
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, analysis, creditors, settings
+  const [analysisView, setAnalysisView] = useState('weekly'); // weekly, monthly
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -333,7 +334,7 @@ const AdminDashboard = () => {
     const actualSales = completedOrders.reduce((acc, o) => acc + (o.total || 0), 0);
     const actualProfit = completedOrders.reduce((acc, o) => {
       const orderProfit = (o.items || []).reduce((iAcc, item) => {
-        return iAcc + ((item.price - (item.buyingPrice || 0)) * item.quantity);
+        return iAcc + (((item.final_price ?? item.price) - (item.buyingPrice || 0)) * item.quantity);
       }, 0);
       return acc + orderProfit;
     }, 0);
@@ -369,13 +370,42 @@ const AdminDashboard = () => {
     const getStats = (ordersList) => {
       const completed = ordersList.filter(o => o.status === 'completed');
       const revenue = completed.reduce((acc, o) => acc + (o.total || 0), 0);
+      const grossRevenue = completed.reduce((acc, o) => acc + (o.subtotal_original || o.total || 0), 0);
+      const totalDiscount = completed.reduce((acc, o) => acc + (o.total_discount || 0), 0);
       const profit = completed.reduce((acc, o) => {
         const orderProfit = (o.items || []).reduce((iAcc, item) => {
-          return iAcc + ((item.price - (item.buyingPrice || 0)) * item.quantity);
+          return iAcc + (((item.final_price ?? item.price) - (item.buyingPrice || 0)) * item.quantity);
         }, 0);
         return acc + orderProfit;
       }, 0);
-      return { revenue, profit, count: completed.length };
+      
+      const discountedSalesCount = completed.filter(o => o.has_discount).length;
+      const fullPriceSalesCount = completed.length - discountedSalesCount;
+
+      // Calculate discount amount per product
+      const productDiscounts = {};
+      completed.forEach(o => {
+        (o.items || []).forEach(item => {
+          if (item.discount_amount && item.discount_amount > 0) {
+            productDiscounts[item.name] = (productDiscounts[item.name] || 0) + (item.discount_amount * item.quantity);
+          }
+        });
+      });
+      const topDiscountedProducts = Object.entries(productDiscounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, amount]) => ({ name, amount }));
+
+      return {
+        revenue,
+        grossRevenue,
+        totalDiscount,
+        profit,
+        count: completed.length,
+        discountedSalesCount,
+        fullPriceSalesCount,
+        topDiscountedProducts
+      };
     };
 
     const weekOrders = orders.filter(o => {
@@ -868,7 +898,14 @@ const AdminDashboard = () => {
                             </div>
                           </td>
                           <td className="p-4">
-                            <span className="font-black text-jade-dark italic">KES {(order.total || 0).toLocaleString()}</span>
+                            <div className="flex flex-col">
+                              <span className="font-black text-jade-dark italic">KES {(order.total || 0).toLocaleString()}</span>
+                              {order.has_discount && (
+                                <span className="inline-block mt-1 text-[9px] font-bold text-green-600 bg-green-50 border border-green-100 rounded px-1.5 py-0.5 w-max animate-pulse">
+                                  Saved KES {order.total_discount?.toLocaleString()}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4">
                             <div className="flex flex-col gap-2">
@@ -918,79 +955,220 @@ const AdminDashboard = () => {
         )}
 
         {/* ANALYSIS TAB */}
-        {activeTab === 'analysis' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-3xl font-black text-jade-dark mb-8 border-b border-jade/5 pb-4 flex items-center gap-3">
-              Business Performance Analysis
-              <TrendingUp className="w-6 h-6 text-jade opacity-50" />
-            </h2>
+        {activeTab === 'analysis' && (() => {
+          const currentStats = analysisView === 'weekly' ? analysisStats.weekly : analysisStats.monthly;
+          
+          // Get order history matching time frame
+          const now = new Date();
+          const limitDate = new Date(now.getTime() - (analysisView === 'weekly' ? 7 : 30) * 24 * 60 * 60 * 1000);
+          const filteredOrders = orders.filter(o => {
+            if (o.status !== 'completed') return false;
+            const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+            return d >= limitDate;
+          });
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Weekly Stats */}
-              <div className="bg-white border border-jade/5 rounded-3xl p-8 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-jade/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-jade/10 transition-colors" />
-                <span className="inline-block px-3 py-1 bg-jade/10 text-jade text-[10px] font-bold uppercase tracking-widest rounded-full mb-6">Last 7 Days</span>
-                <h3 className="text-xl font-bold text-pebble mb-8">Weekly Summary</h3>
-                
-                <div className="space-y-8">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-pebble mb-1">Total Revenue</p>
-                    <p className="text-4xl font-black text-jade-dark tracking-tighter">
-                      <span className="text-jade text-lg mr-2 font-medium italic">KES</span>
-                      {analysisStats.weekly.revenue.toLocaleString()}
-                    </p>
+          // Discounted orders in this period
+          const discountedOrders = filteredOrders.filter(o => o.has_discount);
+
+          // Discount frequency
+          const discountFrequency = filteredOrders.length > 0 
+            ? ((discountedOrders.length / filteredOrders.length) * 100).toFixed(1)
+            : '0.0';
+
+          return (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-jade/5 pb-6">
+                <div>
+                  <h2 className="text-3xl font-black text-jade-dark flex items-center gap-3">
+                    Business Performance Analysis
+                    <TrendingUp className="w-6 h-6 text-jade opacity-50" />
+                  </h2>
+                  <p className="text-xs text-pebble mt-1">Detailed financial audits and cashier discount tracking for Riders Gear Nairobi.</p>
+                </div>
+                <div className="flex bg-morning border border-jade/5 p-1 rounded-xl shadow-inner w-fit self-start">
+                  <button
+                    onClick={() => setAnalysisView('weekly')}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
+                      analysisView === 'weekly'
+                        ? 'bg-white text-jade-dark shadow-sm'
+                        : 'text-pebble hover:text-jade'
+                    }`}
+                  >
+                    Weekly Summary
+                  </button>
+                  <button
+                    onClick={() => setAnalysisView('monthly')}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
+                      analysisView === 'monthly'
+                        ? 'bg-white text-jade-dark shadow-sm'
+                        : 'text-pebble hover:text-jade'
+                    }`}
+                  >
+                    Monthly Summary
+                  </button>
+                </div>
+              </div>
+
+              {/* Core Financial Indicators */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="bg-white border border-jade/5 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-pebble">Gross Revenue</span>
+                  <p className="text-2xl font-black text-jade-dark mt-2 tracking-tight">
+                    <span className="text-xs text-jade mr-1 font-medium">KES</span>
+                    {currentStats.grossRevenue.toLocaleString()}
+                  </p>
+                  <div className="absolute bottom-0 right-0 w-16 h-16 bg-jade/5 rounded-full -mr-8 -mb-8 blur-xl group-hover:bg-jade/10 transition-all" />
+                </div>
+
+                <div className="bg-white border border-jade/5 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-green-600">Total Discounts</span>
+                  <p className="text-2xl font-black text-green-600 mt-2 tracking-tight">
+                    <span className="text-xs text-green-500 mr-1 font-medium">KES</span>
+                    {currentStats.totalDiscount.toLocaleString()}
+                  </p>
+                  <div className="absolute bottom-0 right-0 w-16 h-16 bg-green-50 rounded-full -mr-8 -mb-8 blur-xl group-hover:bg-green-100 transition-all" />
+                </div>
+
+                <div className="bg-white border border-jade/5 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-pebble">Net Revenue</span>
+                  <p className="text-2xl font-black text-jade-dark mt-2 tracking-tight">
+                    <span className="text-xs text-jade mr-1 font-medium">KES</span>
+                    {currentStats.revenue.toLocaleString()}
+                  </p>
+                  <div className="absolute bottom-0 right-0 w-16 h-16 bg-jade/5 rounded-full -mr-8 -mb-8 blur-xl group-hover:bg-jade/10 transition-all" />
+                </div>
+
+                <div className="bg-white border border-jade/5 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-jade">Actual Net Profit</span>
+                  <p className="text-2xl font-black text-jade mt-2 tracking-tight">
+                    <span className="text-xs text-jade-dark mr-1 font-medium">KES</span>
+                    {currentStats.profit.toLocaleString()}
+                  </p>
+                  <div className="absolute bottom-0 right-0 w-16 h-16 bg-jade/5 rounded-full -mr-8 -mb-8 blur-xl group-hover:bg-jade/10 transition-all" />
+                </div>
+
+                <div className="bg-white border border-jade/5 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-red-500">Margin Erosion</span>
+                  <p className="text-2xl font-black text-red-500 mt-2 tracking-tight">
+                    <span className="text-xs text-red-400 mr-1 font-medium">KES</span>
+                    {currentStats.totalDiscount.toLocaleString()}
+                  </p>
+                  <div className="absolute bottom-0 right-0 w-16 h-16 bg-red-50 rounded-full -mr-8 -mb-8 blur-xl group-hover:bg-red-100 transition-all" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left/Middle Columns: Discount Freq & Rankings */}
+                <div className="lg:col-span-2 space-y-8">
+                  {/* Discount Frequency & Volume */}
+                  <div className="bg-white border border-jade/5 rounded-3xl p-6 shadow-sm">
+                    <h3 className="text-sm font-bold text-pebble uppercase tracking-widest mb-6">Discount Frequency & Activity</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <span className="text-xs text-pebble">Discount Rate</span>
+                        <p className="text-3xl font-black text-jade-dark">{discountFrequency}%</p>
+                        <span className="text-[10px] text-pebble leading-relaxed block">of transactions were discounted.</span>
+                      </div>
+                      <div className="space-y-2 border-t sm:border-t-0 sm:border-l border-jade/5 pt-4 sm:pt-0 sm:pl-6">
+                        <span className="text-xs text-pebble">Discounted Orders</span>
+                        <p className="text-3xl font-black text-green-600">{currentStats.discountedSalesCount} / {currentStats.count}</p>
+                        <span className="text-[10px] text-pebble leading-relaxed block">completed sales with manual pricing overrides.</span>
+                      </div>
+                      <div className="space-y-2 border-t sm:border-t-0 sm:border-l border-jade/5 pt-4 sm:pt-0 sm:pl-6">
+                        <span className="text-xs text-pebble">Full-Price Orders</span>
+                        <p className="text-3xl font-black text-jade-dark">{currentStats.fullPriceSalesCount} / {currentStats.count}</p>
+                        <span className="text-[10px] text-pebble leading-relaxed block">completed sales sold at standard catalog pricing.</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-jade mb-1">Total Profit</p>
-                    <p className="text-4xl font-black text-jade-dark tracking-tighter">
-                      <span className="text-jade text-lg mr-2 font-medium italic">KES</span>
-                      {analysisStats.weekly.profit.toLocaleString()}
-                    </p>
+
+                  {/* Top Discounted Products */}
+                  <div className="bg-white border border-jade/5 rounded-3xl p-6 shadow-sm">
+                    <h3 className="text-sm font-bold text-pebble uppercase tracking-widest mb-4">Top Discounted Products</h3>
+                    {currentStats.topDiscountedProducts.length === 0 ? (
+                      <p className="text-xs italic text-pebble py-4 text-center">No discounted product listings in this period.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {currentStats.topDiscountedProducts.map((p, idx) => (
+                          <div key={idx} className="flex justify-between items-center py-2 border-b border-jade/5 last:border-0">
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-morning text-xs font-bold text-pebble">{idx + 1}</span>
+                              <span className="text-xs font-bold text-jade-dark">{p.name}</span>
+                            </div>
+                            <span className="text-xs font-black text-red-500 italic">KES {p.amount.toLocaleString()} lost</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="pt-6 border-t border-jade/5 flex justify-between items-center text-xs font-bold text-pebble">
-                    <span>Total Sales Made</span>
-                    <span className="text-jade-dark">{analysisStats.weekly.count} orders</span>
+                </div>
+
+                {/* Right Column: Discount Auditor Panel */}
+                <div className="bg-white border border-jade/5 rounded-3xl p-6 shadow-sm flex flex-col h-[400px] lg:h-auto animate-[fadeIn_0.3s_ease-out]">
+                  <h3 className="text-sm font-bold text-pebble uppercase tracking-widest mb-4 flex items-center justify-between">
+                    Audit Log
+                    <span className="px-2 py-0.5 rounded bg-green-50 text-green-600 border border-green-100 text-[10px] font-bold">
+                      {discountedOrders.length} Discounted Sales
+                    </span>
+                  </h3>
+                  <div className="overflow-y-auto flex-1 divide-y divide-jade/5 pr-2">
+                    {discountedOrders.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center text-pebble italic py-12">
+                        <Tags className="w-8 h-8 text-jade opacity-20 mb-2" />
+                        <span className="text-xs">No manual overrides recorded in this time range.</span>
+                      </div>
+                    ) : (
+                      discountedOrders.map((order, idx) => (
+                        <div key={order.id || idx} className="py-4 space-y-2 first:pt-0">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-jade-dark">{order.customerName || 'Walk-In customer'}</span>
+                            <span className="text-[10px] text-pebble">
+                              {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {(order.items || []).map((item, itemIdx) => {
+                              const wasDisc = item.discount_amount && item.discount_amount > 0;
+                              return (
+                                <div key={itemIdx} className="flex justify-between items-center text-[10px]">
+                                  <span className="text-pebble font-medium">
+                                    {item.quantity}x {item.name}
+                                  </span>
+                                  {wasDisc ? (
+                                    <span className="font-bold text-red-500">
+                                      KES {item.final_price?.toLocaleString()} <span className="text-pebble line-through text-[8px]">({item.original_price?.toLocaleString()})</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-pebble font-bold">KES {item.price?.toLocaleString()}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="flex justify-between items-center pt-1 border-t border-dashed border-jade/5 text-xs font-black">
+                            <span className="text-pebble font-medium text-[10px]">Net Sale Total:</span>
+                            <span className="text-jade-dark">KES {order.total?.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[10px] text-green-600 font-bold bg-green-50 border border-green-100 rounded px-2 py-1">
+                            <span>Saved Total:</span>
+                            <span>KES {order.total_discount?.toLocaleString()} (-{(((order.total_discount ?? 0) / ((order.subtotal_original ?? order.total) || 1)) * 100).toFixed(0)}%)</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Monthly Stats */}
-              <div className="bg-white border border-jade/5 rounded-3xl p-8 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-jade/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-jade/10 transition-colors" />
-                <span className="inline-block px-3 py-1 bg-jade/10 text-jade text-[10px] font-bold uppercase tracking-widest rounded-full mb-6">Last 30 Days</span>
-                <h3 className="text-xl font-bold text-pebble mb-8">Monthly Summary</h3>
-                
-                <div className="space-y-8">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-pebble mb-1">Total Revenue</p>
-                    <p className="text-4xl font-black text-jade-dark tracking-tighter">
-                      <span className="text-jade text-lg mr-2 font-medium italic">KES</span>
-                      {analysisStats.monthly.revenue.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-jade mb-1">Total Profit</p>
-                    <p className="text-4xl font-black text-jade-dark tracking-tighter">
-                      <span className="text-jade text-lg mr-2 font-medium italic">KES</span>
-                      {analysisStats.monthly.profit.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="pt-6 border-t border-jade/5 flex justify-between items-center text-xs font-bold text-pebble">
-                    <span>Total Sales Made</span>
-                    <span className="text-jade-dark">{analysisStats.monthly.count} orders</span>
-                  </div>
-                </div>
+              <div className="bg-morning/30 border border-jade/5 rounded-2xl p-6">
+                <p className="text-pebble text-xs italic">
+                  Note: Profit is calculated based on the final sold prices recorded at checkout and their corresponding buying prices. 
+                  Margin Erosion measures the potential gross revenue forfeited to customer discounts. Only completed sales transactions are compiled here.
+                </p>
               </div>
             </div>
-
-            <div className="mt-12 bg-morning/30 border border-jade/5 rounded-2xl p-6">
-               <p className="text-pebble text-xs italic">
-                 Note: Profit is calculated based on the buying price recorded at the time of each product entry.
-                 Only completed orders are included in these statistics.
-               </p>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* CREDITORS TAB */}
         {activeTab === 'creditors' && (

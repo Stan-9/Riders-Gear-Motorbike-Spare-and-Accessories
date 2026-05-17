@@ -45,19 +45,43 @@ const ReceiptModal = ({ isOpen, onClose, order, settings }) => {
               <span className="w-1/6 text-center">QTY</span>
               <span className="w-1/6 text-right">PRICE</span>
             </div>
-            {order.items?.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-[11px] gap-2">
-                <span className="w-2/3 uppercase truncate">{item.name}</span>
-                <span className="w-1/6 text-center">{item.quantity}</span>
-                <span className="w-1/6 text-right">{(item.price * item.quantity).toLocaleString()}</span>
-              </div>
-            ))}
+            {order.items?.map((item, idx) => {
+              const itemPrice = item.final_price ?? item.price;
+              const hasItemDisc = item.discount_amount && item.discount_amount > 0;
+              return (
+                <div key={idx} className="space-y-0.5">
+                  <div className="flex justify-between text-[11px] gap-2">
+                    <span className="w-2/3 uppercase truncate">{item.name}</span>
+                    <span className="w-1/6 text-center">{item.quantity}</span>
+                    <span className="w-1/6 text-right">{(itemPrice * item.quantity).toLocaleString()}</span>
+                  </div>
+                  {hasItemDisc && (
+                    <div className="flex justify-between text-[9px] text-green-700 font-bold pl-2">
+                      <span>* MANUAL DISCOUNT Applied</span>
+                      <span>- KES {(item.discount_amount * item.quantity).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Totals */}
           <div className="border-t-2 border-black pt-4 space-y-2">
+            {order.has_discount && (
+              <>
+                <div className="flex justify-between text-xs font-bold text-pebble">
+                  <span>SUBTOTAL</span>
+                  <span>KES {order.subtotal_original?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs font-bold text-green-700">
+                  <span>DISCOUNT (SAVINGS)</span>
+                  <span>- KES {order.total_discount?.toLocaleString()}</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between text-lg font-black">
-              <span>TOTAL</span>
+              <span>{order.has_discount ? 'NET TOTAL' : 'TOTAL'}</span>
               <span>KES {order.total?.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-[10px] font-bold">

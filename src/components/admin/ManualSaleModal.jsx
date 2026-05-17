@@ -46,7 +46,7 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
         toast.error(`Only ${product.stock} units available in stock`);
       }
     } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+      setCart([...cart, { ...product, quantity: 1, finalPrice: product.price }]);
     }
     setSearchQuery(''); // clear search after adding
   };
@@ -69,7 +69,9 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
     setCart(cart.filter(item => item.id !== id));
   };
 
-  const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const grandTotal = cart.reduce((sum, item) => sum + ((item.finalPrice ?? item.price) * item.quantity), 0);
+  const originalTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalDiscount = originalTotal - grandTotal;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,20 +80,48 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
       return;
     }
 
+    // Check manager min sell price block
+    for (const item of cart) {
+      const finalPrice = Number(item.finalPrice ?? item.price);
+      const minPrice = Number(item.minSellingPrice || 0);
+      if (finalPrice < minPrice) {
+        toast.error(`Sale Blocked: price for "${item.name}" (KES ${finalPrice.toLocaleString()}) is below the manager-defined minimum price limit (KES ${minPrice.toLocaleString()}).`);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
+      const subtotal_original = cart.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+      const total_discount = subtotal_original - grandTotal;
+      const has_discount = total_discount > 0;
+
       const orderData = {
         customerName: customerName.trim() || 'Walk-in Customer',
         customerAction: 'manual_walk_in',
         paymentType,
         paymentStatus,
         total: grandTotal,
-        items: cart.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity
-        }))
+        subtotal_original,
+        total_discount,
+        has_discount,
+        items: cart.map(item => {
+          const orig = Number(item.price);
+          const final = Number(item.finalPrice ?? item.price);
+          const disc = orig - final;
+          const pct = orig > 0 ? (disc / orig) * 100 : 0;
+          return {
+            id: item.id,
+            name: item.name,
+            price: final, // for backward compatibility
+            original_price: orig,
+            final_price: final,
+            discount_amount: disc,
+            discount_percentage: pct,
+            was_discounted: disc > 0,
+            quantity: item.quantity
+          };
+        })
       };
 
       await processManualSale(orderData);
@@ -240,8 +270,44 @@ const ManualSaleModal = ({ isOpen, onClose, products }) => {
                         </button>
                       </div>
                       <span className="text-sm font-black text-jade-dark">
-                        KES {((item.price || 0) * (item.quantity || 0)).toLocaleString()}
+                        KES {(((item.finalPrice ?? item.price) || 0) * (item.quantity || 0)).toLocaleString()}
                       </span>
+                    </div>
+
+                    {/* Manual Selling Price Input Row */}
+                    <div className="flex items-center gap-2 mt-1 pt-1 border-t border-jade/5">
+                      <div className="flex-1">
+                        <label className="block text-[8px] font-black text-pebble uppercase tracking-wider mb-0.5">Unit Selling Price (KES)</label>
+                        <input
+                          type="number"
+                          value={item.finalPrice ?? item.price}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Number(e.target.value);
+                            setCart(cart.map(c => c.id === item.id ? { ...c, finalPrice: val } : c));
+                          }}
+                          className={`w-full bg-white border ${
+                            (item.finalPrice ?? item.price) < (item.minSellingPrice || 0)
+                              ? 'border-red-400 focus:border-red-500 bg-red-50/20 text-red-700'
+                              : (item.finalPrice ?? item.price) < item.price
+                              ? 'border-green-400 focus:border-green-500 bg-green-50/20 text-green-700'
+                              : 'border-jade/5 focus:border-jade'
+                          } rounded-lg px-2 py-1 text-xs font-bold focus:outline-none transition shadow-sm`}
+                        />
+                      </div>
+                      
+                      {/* Price limits / status badge */}
+                      <div className="flex flex-col justify-end items-end shrink-0 pt-3">
+                        {(item.finalPrice ?? item.price) < item.price && (
+                          <span className="text-[9px] font-bold text-green-600 bg-green-50 border border-green-100 rounded px-1.5 py-0.5 mb-1 animate-pulse">
+                            -{Math.round(((item.price - (item.finalPrice ?? item.price)) / item.price) * 100)}% Discount
+                          </span>
+                        )}
+                        {(item.finalPrice ?? item.price) < (item.minSellingPrice || 0) && (
+                          <span className="text-[9px] font-black text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-0.5">
+                            Below Limit (Min: {item.minSellingPrice})
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
