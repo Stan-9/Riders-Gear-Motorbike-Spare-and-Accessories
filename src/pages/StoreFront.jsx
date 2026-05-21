@@ -69,7 +69,7 @@ const StoreFront = () => {
           </div>
         )}
 
-        <div className="relative h-64 bg-morning overflow-hidden flex items-center justify-center border-b border-jade/5">
+        <div className="relative h-36 sm:h-48 md:h-56 lg:h-64 bg-morning overflow-hidden flex items-center justify-center border-b border-jade/5">
           {product.imageUrl ? (
             <img 
               src={product.imageUrl} 
@@ -85,43 +85,43 @@ const StoreFront = () => {
           
           <div className="absolute inset-0 bg-gradient-to-t from-jade/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-          <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2 justify-between items-center z-10">
-            <div className="bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-jade-dark border border-jade/5 uppercase tracking-wider">
+          <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 flex flex-col sm:flex-row gap-1 sm:gap-2 justify-between items-start sm:items-center z-10">
+            <div className="bg-white/90 backdrop-blur-md px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[7px] sm:text-[10px] font-bold text-jade-dark border border-jade/5 uppercase tracking-wider">
               {product.category || 'Gear'}
             </div>
             
-            <div className={`px-3 py-1 rounded-full text-[10px] font-bold shadow-sm flex items-center gap-2 uppercase tracking-wider ${
+            <div className={`px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[7px] sm:text-[10px] font-bold shadow-sm flex items-center gap-1 sm:gap-2 uppercase tracking-wider ${
               isOutOfStock ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-jade/10 text-jade border border-jade/20'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-red-500' : 'bg-jade'}`} />
+              <span className={`w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full ${isOutOfStock ? 'bg-red-500' : 'bg-jade'}`} />
               {isOutOfStock ? 'Sold Out' : 'Available'}
             </div>
           </div>
         </div>
 
-        <div className="p-6 flex flex-col flex-1 relative">
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-jade-dark group-hover:text-jade transition-colors duration-300 leading-tight tracking-tight">
+        <div className="p-2 sm:p-6 flex flex-col flex-1 relative">
+          <div className="mb-2 sm:mb-6">
+            <h3 className="text-xs sm:text-xl font-bold text-jade-dark group-hover:text-jade transition-colors duration-300 leading-tight tracking-tight line-clamp-2">
               {product.name}
             </h3>
             
             {product.description && (
-              <p className="text-pebble text-sm mt-4 line-clamp-2 leading-relaxed font-medium">
+              <p className="hidden sm:block text-pebble text-sm mt-4 line-clamp-2 leading-relaxed font-medium">
                 {product.description}
               </p>
             )}
           </div>
 
-          <div className="mt-auto flex items-end justify-between pt-6">
+          <div className="mt-auto flex flex-col sm:flex-row sm:items-end justify-between pt-3 sm:pt-6 gap-2">
             <div>
-              <span className="text-[10px] text-pebble uppercase font-bold block tracking-widest mb-1">Price</span>
-              <span className="text-2xl font-black text-jade-dark">
-                <span className="text-jade text-sm font-bold mr-1">KES</span>
+              <span className="hidden sm:block text-[10px] text-pebble uppercase font-bold tracking-widest mb-1">Price</span>
+              <span className="text-base sm:text-2xl font-black text-jade-dark">
+                <span className="text-jade text-[10px] sm:text-sm font-bold mr-0.5 sm:mr-1">KES</span>
                 {product.price.toLocaleString()}
               </span>
             </div>
-            <div className="text-right">
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${isOutOfStock ? 'text-red-400' : 'text-pebble'}`}>
+            <div className="text-left sm:text-right">
+              <span className={`text-[8px] sm:text-[10px] font-bold uppercase tracking-widest ${isOutOfStock ? 'text-red-400' : 'text-pebble'}`}>
                 {isOutOfStock ? 'Waitlist' : `Stock: ${product.stock}`}
               </span>
             </div>
@@ -130,7 +130,7 @@ const StoreFront = () => {
           <button
             disabled={isOutOfStock || maxReached}
             onClick={() => addToCart(product)}
-            className={`mt-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest w-full flex justify-center items-center gap-3 transition-all duration-300 ${
+            className={`mt-4 sm:mt-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest w-full flex justify-center items-center gap-1.5 sm:gap-3 transition-all duration-300 ${
               isOutOfStock 
                 ? 'bg-pebble/10 text-pebble cursor-not-allowed'
                 : maxReached
@@ -139,13 +139,14 @@ const StoreFront = () => {
             }`}
           >
             {isOutOfStock 
-              ? 'OUT OF STOCK' 
+              ? 'DEPLETED' 
               : maxReached 
-                ? 'LIMIT REACHED' 
+                ? 'LIMIT' 
                 : (
                   <>
-                    Add to Cart
-                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Acquire Part</span>
+                    <span className="inline sm:hidden">Acquire</span>
+                    <Plus className="w-3.5 h-3.5" />
                   </>
                 )}
           </button>
@@ -231,11 +232,11 @@ const StoreFront = () => {
 
         {/* Product Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-12">
             {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-16">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-12">
             {filteredProducts.map((product, index) => (
               <ProductCard key={product.id} product={product} index={index} />
             ))}
