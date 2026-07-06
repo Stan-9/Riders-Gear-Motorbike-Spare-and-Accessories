@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://riders-gear-nairobi.pages.dev/sitemap.xml

@@ -63,7 +63,7 @@ const NavButton = ({ id, icon: Icon, label, badge = null, activeTab, setActiveTa
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview'); // overview, products, orders, analysis, creditors, settings
-  const [analysisView, setAnalysisView] = useState('weekly'); // weekly, monthly
+  const [analysisView, setAnalysisView] = useState('all'); // all, weekly, monthly
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -419,6 +419,7 @@ const AdminDashboard = () => {
     });
 
     return {
+      all: getStats(orders),
       weekly: getStats(weekOrders),
       monthly: getStats(monthOrders)
     };
@@ -502,6 +503,22 @@ const AdminDashboard = () => {
                     </h3>
                     <p className="text-pebble mt-1 text-[10px] font-bold uppercase tracking-wider">Total investment in inventory</p>
                   </div>
+                  <div className="border-b md:border-b-0 md:border-r border-jade/5 pb-6 md:pb-0 md:pr-8">
+                    <span className="text-jade font-bold uppercase tracking-widest text-[10px] mb-2 block">Warehouse Value (Retail)</span>
+                    <h3 className="text-3xl font-black text-jade-dark tracking-tight">
+                      <span className="text-jade text-lg mr-2 font-bold italic">KES</span>
+                      {stats.totalValue.toLocaleString()}
+                    </h3>
+                    <p className="text-pebble mt-1 text-[10px] font-bold uppercase tracking-wider">Expected revenue if all stock sold</p>
+                  </div>
+                  <div>
+                    <span className="text-jade font-bold uppercase tracking-widest text-[10px] mb-2 block">Potential Profit Margin</span>
+                    <h3 className="text-3xl font-black text-jade tracking-tight">
+                      <span className="text-jade text-lg mr-2 font-bold italic">KES</span>
+                      {stats.potentialProfit.toLocaleString()}
+                    </h3>
+                    <p className="text-pebble mt-1 text-[10px] font-bold uppercase tracking-wider">Retail minus cost (unrealised)</p>
+                  </div>
                 </div>
                 <div className="absolute -right-10 -bottom-10 opacity-5 text-jade">
                   <TrendingUp className="w-64 h-64 rotate-12" />
@@ -529,7 +546,8 @@ const AdminDashboard = () => {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Latest Orders */}
               <div className="bg-white border border-jade/5 rounded-3xl p-8 shadow-sm">
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-xl font-bold text-jade-dark flex items-center gap-2">
@@ -568,6 +586,7 @@ const AdminDashboard = () => {
                 )}
               </div>
 
+              {/* Low Stock Alert */}
               <div className="bg-white border border-jade/5 rounded-3xl p-8 shadow-sm">
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-xl font-bold text-jade-dark flex items-center gap-2">
@@ -596,6 +615,54 @@ const AdminDashboard = () => {
                     <div className="text-center py-10 opacity-30 italic text-sm text-pebble">Inventory levels are healthy</div>
                   )}
                 </div>
+              </div>
+
+              {/* Pending / Unpaid Orders */}
+              <div className="bg-white border border-jade/5 rounded-3xl p-8 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xl font-bold text-jade-dark flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-red-500" />
+                    Pending / Unpaid
+                  </h3>
+                  <button onClick={() => setActiveTab('creditors')} className="text-jade text-xs font-bold uppercase tracking-widest hover:underline">View All</button>
+                </div>
+                {(() => {
+                  const pendingUnpaid = orders
+                    .filter(o => o.status === 'pending' || (o.paymentType === 'Credit' && o.paymentStatus === 'Unpaid'))
+                    .sort((a, b) => {
+                      const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                      const db2 = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                      return db2 - da;
+                    });
+                  if (pendingUnpaid.length === 0) return (
+                    <div className="text-center py-10 opacity-30 italic text-sm text-pebble">No pending or unpaid orders</div>
+                  );
+                  return (
+                    <div className="space-y-3">
+                      {pendingUnpaid.slice(0, 5).map(order => {
+                        const isUnpaidCredit = order.paymentType === 'Credit' && order.paymentStatus === 'Unpaid';
+                        const isPending = order.status === 'pending';
+                        return (
+                          <div key={order.id} className={`flex items-start gap-3 p-3 rounded-2xl border ${isUnpaidCredit ? 'bg-red-50/60 border-red-100' : 'bg-amber-50/60 border-amber-100'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUnpaidCredit ? 'bg-red-100' : 'bg-amber-100'}`}>
+                              <AlertCircle className={`w-4 h-4 ${isUnpaidCredit ? 'text-red-500' : 'text-amber-600'}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-jade-dark truncate">{order.customerName || 'Walk-In'}</p>
+                              <p className="text-[10px] font-black text-jade-dark">KES {order.total?.toLocaleString()}</p>
+                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${isUnpaidCredit ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
+                                {isUnpaidCredit ? 'UNPAID CREDIT' : 'PENDING FULFILMENT'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {pendingUnpaid.length > 5 && (
+                        <p className="text-[10px] text-pebble text-center font-bold pt-1">+{pendingUnpaid.length - 5} more — check Creditors tab</p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -956,13 +1023,14 @@ const AdminDashboard = () => {
 
         {/* ANALYSIS TAB */}
         {activeTab === 'analysis' && (() => {
-          const currentStats = analysisView === 'weekly' ? analysisStats.weekly : analysisStats.monthly;
+          const currentStats = analysisView === 'all' ? analysisStats.all : analysisView === 'weekly' ? analysisStats.weekly : analysisStats.monthly;
           
           // Get order history matching time frame
           const now = new Date();
-          const limitDate = new Date(now.getTime() - (analysisView === 'weekly' ? 7 : 30) * 24 * 60 * 60 * 1000);
           const filteredOrders = orders.filter(o => {
             if (o.status !== 'completed') return false;
+            if (analysisView === 'all') return true;
+            const limitDate = new Date(now.getTime() - (analysisView === 'weekly' ? 7 : 30) * 24 * 60 * 60 * 1000);
             const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
             return d >= limitDate;
           });
@@ -987,6 +1055,16 @@ const AdminDashboard = () => {
                 </div>
                 <div className="flex bg-morning border border-jade/5 p-1 rounded-xl shadow-inner w-fit self-start">
                   <button
+                    onClick={() => setAnalysisView('all')}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
+                      analysisView === 'all'
+                        ? 'bg-white text-jade-dark shadow-sm'
+                        : 'text-pebble hover:text-jade'
+                    }`}
+                  >
+                    All Time
+                  </button>
+                  <button
                     onClick={() => setAnalysisView('weekly')}
                     className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
                       analysisView === 'weekly'
@@ -994,7 +1072,7 @@ const AdminDashboard = () => {
                         : 'text-pebble hover:text-jade'
                     }`}
                   >
-                    Weekly Summary
+                    Weekly
                   </button>
                   <button
                     onClick={() => setAnalysisView('monthly')}
@@ -1004,7 +1082,7 @@ const AdminDashboard = () => {
                         : 'text-pebble hover:text-jade'
                     }`}
                   >
-                    Monthly Summary
+                    Monthly
                   </button>
                 </div>
               </div>

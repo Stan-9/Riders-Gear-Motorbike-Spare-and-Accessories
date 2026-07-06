@@ -16,7 +16,7 @@ export const getSettings = async () => {
     if (snapshot.exists()) {
       return snapshot.data();
     }
-    return { shopName: "Riders Gear Nairobi", whatsappNumber: "254700000000" };
+    return { shopName: "Riders Gear Nairobi", whatsappNumber: "254716778794" };
   } catch (error) {
     console.error("Error fetching settings: ", error);
     return { shopName: "Riders Gear Nairobi", whatsappNumber: "" };
