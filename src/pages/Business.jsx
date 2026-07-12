@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Phone, MapPin, Clock, Shield, Wrench, Zap, Award, ChevronRight } from 'lucide-react';
 import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 
 const Business = () => {
   const services = [
@@ -108,6 +109,8 @@ const Business = () => {
           </div>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };

@@ -6,6 +6,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import Checkout from './pages/Checkout';
 import Business from './pages/Business';
+import About from './pages/About';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import { useEffect, useState } from 'react';
@@ -72,6 +73,7 @@ function App() {
           <Routes>
             <Route path="/" element={<StoreFront />} />
             <Route path="/business" element={<Business />} />
+            <Route path="/about" element={<About />} />
             <Route path="/checkout" element={<Checkout />} />
 
             {/* Admin routes */}

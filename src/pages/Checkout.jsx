@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { processManualSale } from '../firebase/products';
 import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, MapPin, Phone, User, ShoppingBag, ShoppingCart } from 'lucide-react';
@@ -263,6 +264,8 @@ const Checkout = () => {
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 };

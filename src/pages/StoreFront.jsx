@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 import CartDrawer from '../components/shared/CartDrawer';
 import SkeletonCard from '../components/shared/SkeletonCard';
 import { subscribeProducts, subscribeSettings } from '../firebase/products';
@@ -262,22 +263,7 @@ const StoreFront = () => {
         )}
       </main>
 
-      <footer className="border-t border-jade/5 py-20 bg-white text-center mt-auto">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center gap-8">
-            <div className="w-16 h-16 rounded-2xl bg-jade flex items-center justify-center font-black text-white shadow-xl shadow-jade/20 text-3xl">
-              {settings?.shopName ? settings.shopName.charAt(0) : 'R'}
-            </div>
-            <h2 className="text-jade-dark font-black text-2xl tracking-tight">
-              {settings.shopName || "Riders Gear Nairobi"}
-            </h2>
-            <div className="h-[2px] w-12 bg-jade/20" />
-            <p className="text-pebble text-xs font-medium tracking-wider">
-              &copy; {new Date().getFullYear()} {settings.shopName || "Riders Gear Nairobi"} • Premium Gear & Accessories
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer shopName={settings?.shopName} />
     </div>
   );
 };
