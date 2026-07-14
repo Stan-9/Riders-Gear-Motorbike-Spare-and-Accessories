@@ -37,13 +37,13 @@ const Footer = ({ shopName }) => {
           <div className="flex flex-col gap-6">
             <h3 className="text-jade-dark font-black tracking-tight text-lg">Contact Us</h3>
             <div className="flex flex-col gap-4">
-              <a href="mailto:info@ridersgearnairobi.com" className="flex items-center gap-3 text-pebble hover:text-jade font-medium text-sm transition-colors group">
+              <a href="mailto:Wambuicaroline406@gmail.com" className="flex items-center gap-3 text-pebble hover:text-jade font-medium text-sm transition-colors group">
                 <Mail className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                info@ridersgearnairobi.com
+                Wambuicaroline406@gmail.com
               </a>
-              <a href="tel:+254716778794" className="flex items-center gap-3 text-pebble hover:text-jade font-medium text-sm transition-colors group">
+              <a href="tel:0716704565" className="flex items-center gap-3 text-pebble hover:text-jade font-medium text-sm transition-colors group">
                 <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                +254 716 778 794
+                0716 704 565
               </a>
               <div className="flex items-start gap-3 text-pebble font-medium text-sm">
                 <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
