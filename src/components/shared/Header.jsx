@@ -40,7 +40,7 @@ const Header = ({ shopName }) => {
         </div>
 
         <div className="flex items-center gap-4">
-          {user ? (
+          {user && (
             <div className="flex items-center gap-3 bg-jade/5 p-1.5 pr-4 rounded-xl border border-jade/10">
               <div className="w-8 h-8 rounded-lg bg-jade/10 flex items-center justify-center">
                 <User className="w-4 h-4 text-jade" />
