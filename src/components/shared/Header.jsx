@@ -56,14 +56,6 @@ const Header = ({ shopName }) => {
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
-          ) : (
-            <Link 
-              to="/login"
-              className="p-2.5 rounded-xl border border-pebble/20 text-pebble hover:text-jade hover:border-jade transition-all"
-              title="Sign In"
-            >
-              <User className="w-5 h-5" />
-            </Link>
           )}
 
           <div className="h-8 w-px bg-jade/10 mx-2" />
