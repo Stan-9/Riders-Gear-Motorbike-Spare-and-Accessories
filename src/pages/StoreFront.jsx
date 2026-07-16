@@ -59,10 +59,6 @@ const StoreFront = () => {
         className="bg-white rounded-3xl overflow-hidden border border-jade/5 hover:border-jade/20 transition-all duration-500 hover:shadow-2xl hover:shadow-jade/5 flex flex-col group relative"
         style={{ animationDelay: `${index * 50}ms` }}
       >
-        {/* SKU Label */}
-        <div className="absolute top-4 left-4 z-30 bg-jade/10 backdrop-blur-md text-[10px] font-bold px-2 py-1 text-jade rounded-lg uppercase">
-          SKU-{product.id.slice(0, 6)}
-        </div>
 
         {inCartQty > 0 && (
           <div className="absolute top-4 right-4 z-20 bg-jade text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg border border-white/20 animate-pulse">
@@ -122,9 +118,11 @@ const StoreFront = () => {
               </span>
             </div>
             <div className="text-left sm:text-right">
-              <span className={`text-[8px] sm:text-[10px] font-bold uppercase tracking-widest ${isOutOfStock ? 'text-red-400' : 'text-pebble'}`}>
-                {isOutOfStock ? 'Waitlist' : `Stock: ${product.stock}`}
-              </span>
+              {isOutOfStock && (
+                <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-red-400">
+                  Waitlist
+                </span>
+              )}
             </div>
           </div>
 

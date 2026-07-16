@@ -32,7 +32,7 @@ const Business = () => {
             workshops, and professional riders across East Africa. Partner with us for quality and reliability.
           </p>
           <a
-            href="https://wa.me/254716778794?text=Hi%20Riders%20Gear%2C%20I%20have%20a%20business%20enquiry"
+            href="https://wa.me/2540716704565?text=Hi%20Riders%20Gear%2C%20I%20have%20a%20business%20enquiry"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 bg-jade hover:bg-jade-dark text-white font-bold px-10 py-5 rounded-2xl shadow-xl shadow-jade/20 transition transform hover:-translate-y-1 text-lg"
@@ -71,7 +71,7 @@ const Business = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
             {[
               { icon: MapPin, label: 'Headquarters', value: 'Nairobi, Kenya' },
-              { icon: Phone, label: 'WhatsApp', value: '+254 716 778 794' },
+              { icon: Phone, label: 'WhatsApp', value: '+254 716 704 565' },
               { icon: Clock, label: 'Service Hours', value: 'Mon–Sat · 8am – 6pm' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-white border border-jade/5 p-8 rounded-3xl shadow-sm">
@@ -99,7 +99,7 @@ const Business = () => {
               Browse Products
             </Link>
             <a
-              href="https://wa.me/254716778794?text=Hi%20Riders%20Gear%2C%20I%20would%20like%20to%20place%20a%20bulk%20order"
+              href="https://wa.me/2540716704565?text=Hi%20Riders%20Gear%2C%20I%20would%20like%20to%20place%20a%20bulk%20order"
               target="_blank"
               rel="noopener noreferrer"
               className="bg-white text-jade font-bold px-10 py-5 rounded-2xl shadow-xl transition hover:bg-morning"
