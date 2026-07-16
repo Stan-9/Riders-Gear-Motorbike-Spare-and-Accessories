@@ -102,9 +102,42 @@ export const subscribeOrders = (callback) => {
 
 export const updateOrderStatus = async (orderId, status) => {
   try {
-    const orderRef = doc(db, 'orders', orderId);
-    await updateDoc(orderRef, { status });
-    return result(true);
+    return await runTransaction(db, async (transaction) => {
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await transaction.get(orderRef);
+      if (!orderDoc.exists()) {
+        throw new Error("Order not found");
+      }
+      
+      const orderData = orderDoc.data();
+      const previousStatus = orderData.status;
+
+      if (previousStatus !== status) {
+        // If moving TO cancelled from something else, RESTORE stock
+        if (status === 'cancelled') {
+          for (const item of orderData.items || []) {
+            const productRef = doc(db, 'products', item.id);
+            const productDoc = await transaction.get(productRef);
+            if (productDoc.exists()) {
+              transaction.update(productRef, { stock: productDoc.data().stock + item.quantity });
+            }
+          }
+        } 
+        // If moving FROM cancelled to something else (e.g. pending/completed), DEDUCT stock again
+        else if (previousStatus === 'cancelled') {
+          for (const item of orderData.items || []) {
+            const productRef = doc(db, 'products', item.id);
+            const productDoc = await transaction.get(productRef);
+            if (productDoc.exists()) {
+              const newStock = Math.max(0, productDoc.data().stock - item.quantity);
+              transaction.update(productRef, { stock: newStock });
+            }
+          }
+        }
+        transaction.update(orderRef, { status });
+      }
+      return result(true);
+    });
   } catch (error) {
     console.error("Error updating order status: ", error);
     return result(false, null, error.message);
