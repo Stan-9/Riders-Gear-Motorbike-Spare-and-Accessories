@@ -413,7 +413,8 @@ const ReceiptView = ({ order, onPrint, onClose }) => {
       <div id="receipt-content" className="max-w-sm mx-auto border-2 border-dashed border-jade/20 p-6 bg-white">
         <div className="text-center mb-6">
           <h1 className="text-xl font-black uppercase tracking-tighter mb-1">RIDERS GEAR NAIROBI</h1>
-          <p className="text-[10px] text-pebble uppercase font-bold">Premium Motorcycle Gear</p>
+          <p className="text-[10px] text-pebble uppercase font-bold mb-1">Premium Motorcycle Gear</p>
+          <p className="text-[10px] text-pebble uppercase font-bold">Tel: +254 716 704 565</p>
           <div className="h-px bg-jade/10 my-4" />
           <p className="text-xs font-bold uppercase">Official Receipt</p>
           <p className="text-[10px] mt-1 text-pebble">{new Date().toLocaleString()}</p>

@@ -24,7 +24,8 @@ const ReceiptModal = ({ isOpen, onClose, order, settings }) => {
           {/* Receipt Header */}
           <div className="text-center mb-6">
             <h1 className="text-xl font-black uppercase tracking-widest mb-1">{settings?.shopName || 'RIDERS GEAR NAIROBI'}</h1>
-            <p className="text-[10px] uppercase font-bold text-pebble mb-2">Motorbike Spare Parts & Accessories</p>
+            <p className="text-[10px] uppercase font-bold text-pebble mb-1">Motorbike Spare Parts & Accessories</p>
+            <p className="text-[10px] uppercase font-bold text-pebble mb-2">Tel: +254 716 704 565</p>
             <div className="border-t border-b border-jade/10 py-2 my-2 space-y-1">
               <p className="flex justify-between"><span>DATE:</span> <span>{new Date(order.createdAt?.toDate ? order.createdAt.toDate() : order.createdAt).toLocaleString()}</span></p>
               <p className="flex justify-between"><span>ORDER ID:</span> <span className="font-bold">#{order.id.slice(-6).toUpperCase()}</span></p>
